@@ -1,0 +1,7 @@
+# Project Description
+
+This is a personal education project where I wanted to experiment with interpreter/compiler implementation techniques.
+
+The language that was chosen for this was [BrainFuck](https://en.wikipedia.org/wiki/Brainfuck). 
+
+Read the [architectural_decisions.yaml](./architectural_decisions.yaml) and [project.yaml](project.yaml) files for details.

@@ -1,0 +1,33 @@
+decision: ADR-0001
+title: Dense Jump Table
+
+status: Accepted
+
+context: >
+  The interpreter requires frequent lookups of matching
+  loop instructions during execution.
+
+alternatives:
+  - Runtime bracket scanning
+  - std::unordered_map<size_t, size_t>
+  - Linear search over vector
+
+decision: >
+  Store jump targets in a std::vector<size_t> indexed by
+  instruction position.
+
+rationale:
+  - Instruction indices are dense.
+  - O(1) lookup.
+  - Excellent cache locality.
+  - Simplifies interpreter logic.
+  - Additional memory cost is acceptable for an educational project.
+
+consequences:
+  positive:
+    - Faster execution
+    - Simpler code
+    - Better readability
+
+  negative:
+    - Allocates one entry per instruction

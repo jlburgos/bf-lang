@@ -1,0 +1,5 @@
+## Ignore build artifacts
+bf
+
+## Ignore test files
+.*bf

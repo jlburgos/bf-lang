@@ -1,0 +1,252 @@
+project:
+  name: bf-interpreter
+  version: "1.0"
+  language: C++23
+  status: Stable Baseline
+
+purpose:
+  primary_goal: >
+    Educational exploration of interpreter, virtual machine,
+    compiler, and JIT design using the Brainfuck programming
+    language as a manageable implementation target.
+
+  philosophy:
+    - Favor understanding over raw performance.
+    - Learn architectural techniques incrementally.
+    - Keep each version fully functional before introducing
+      additional complexity.
+    - Treat the project as a miniature language implementation
+      rather than simply a Brainfuck interpreter.
+
+current_implementation:
+  architecture:
+    - Read source file
+    - Filter non-Brainfuck characters
+    - Precompute matching loop jump table
+    - Execute interpreter
+
+  execution_model: Character interpreter
+
+  tape:
+    cells: 30000
+    cell_type: uint8_t
+    pointer_type: size_t
+
+  jump_table:
+    implementation: std::vector<size_t>
+    lookup: O(1)
+
+  validation:
+    unmatched_open_brackets: true
+    unmatched_close_brackets: true
+    bounds_checking:
+      memory_pointer: true
+
+design_principles:
+  - Prefer simple, readable code over clever implementations.
+  - Separate preprocessing from execution.
+  - Use modern C++ idioms where appropriate.
+  - Prefer algorithmic improvements over micro-optimizations.
+  - Keep interpreter behavior explicit and easy to reason about.
+  - Refactor only when architectural benefits outweigh added complexity.
+
+learning_objectives:
+  - Interpreter architecture
+  - Parsing
+  - Intermediate representations (IR)
+  - Compiler optimization techniques
+  - Virtual machine design
+  - Bytecode execution
+  - Runtime profiling
+  - Adaptive optimization
+  - JIT compilation fundamentals
+
+roadmap:
+
+  - version: "1.0"
+    title: Baseline Interpreter
+    status: Complete
+    concepts:
+      - Character-by-character interpretation
+      - Jump table preprocessing
+      - Modern C++ implementation
+      - Robust error handling
+
+  - version: "2.0"
+    title: Intermediate Representation
+    status: Planned
+
+    objective: >
+      Replace character execution with execution of parsed
+      instructions.
+
+    concepts:
+      - Opcode enumeration
+      - Instruction structures
+      - Program representation
+      - Separation of parsing and execution
+
+    expected_changes:
+      - Introduce Program class/struct
+      - Introduce Instruction class/struct
+      - Replace switch on characters with switch on opcodes
+
+  - version: "2.1"
+    title: Instruction Compression
+    status: Planned
+
+    objective: >
+      Combine repeated instructions into a single instruction
+      with an operand.
+
+    examples:
+      - "++++++ -> Add(6)"
+      - ">>>> -> Move(4)"
+      - "<< -> Move(-2)"
+
+    concepts:
+      - Instruction compression
+      - Parse-time optimization
+
+  - version: "2.2"
+    title: Peephole Optimization
+    status: Planned
+
+    objective: >
+      Perform optimization passes over the intermediate
+      representation.
+
+    examples:
+      - "Add(3), Add(2) -> Add(5)"
+      - "Move(5), Move(-5) -> removed"
+
+    concepts:
+      - Optimization passes
+      - Compiler transformations
+
+  - version: "3.0"
+    title: Loop Recognition
+    status: Planned
+
+    objective: >
+      Recognize common Brainfuck loop idioms and replace
+      them with specialized instructions.
+
+    examples:
+      - "[-] -> ClearCell"
+
+    concepts:
+      - Pattern matching
+      - Semantic optimization
+
+  - version: "3.1"
+    title: Advanced Loop Optimizations
+    status: Planned
+
+    examples:
+      - "[->+<] -> MoveValue"
+      - "[->++<] -> MultiplyAdd"
+
+    concepts:
+      - Higher-level semantic analysis
+      - Specialized VM instructions
+
+  - version: "4.0"
+    title: Virtual Machine
+    status: Planned
+
+    objective: >
+      Refactor execution into a reusable VM architecture.
+
+    concepts:
+      - VM state
+      - Instruction dispatch
+      - Separation of execution engine
+
+  - version: "5.0"
+    title: Bytecode
+    status: Planned
+
+    objective: >
+      Introduce a compact bytecode format.
+
+    concepts:
+      - Bytecode encoding
+      - Binary instruction streams
+
+  - version: "6.0"
+    title: Just-In-Time Compilation
+    status: Planned
+
+    objective: >
+      Generate native machine code from the intermediate
+      representation.
+
+    concepts:
+      - Dynamic code generation
+      - Executable memory
+      - Native instruction emission
+
+  - version: "7.0"
+    title: Runtime Profiling
+    status: Planned
+
+    objective: >
+      Collect execution statistics.
+
+    metrics:
+      - Instruction counts
+      - Loop execution counts
+      - Hot paths
+      - Memory usage
+
+  - version: "8.0"
+    title: Adaptive Optimization
+    status: Planned
+
+    objective: >
+      Use runtime statistics to optimize frequently executed
+      code dynamically.
+
+    concepts:
+      - Hot loop detection
+      - Tiered execution
+      - Adaptive optimization
+
+non_goals:
+  - Extreme micro-optimizations
+  - Obfuscated code
+  - Platform-specific hacks
+  - Sacrificing readability for benchmark performance
+  - Competitive Brainfuck interpreter performance
+
+future_extensions:
+  optional:
+    - Debugger
+    - Breakpoints
+    - Single-step execution
+    - Tape visualization
+    - Execution tracing
+    - Profiler visualization
+    - Interactive REPL
+    - Multiple tape implementations
+    - Pluggable optimization passes
+    - Alternative execution engines
+
+success_criteria:
+  - Every version remains functional.
+  - Each version introduces one major architectural concept.
+  - Refactorings improve clarity rather than merely changing code.
+  - The codebase remains understandable months later.
+  - The project serves as a learning resource for language implementation.
+
+notes:
+  - >
+    This project intentionally favors educational value over
+    maximum runtime performance.
+  - >
+    Architectural improvements should generally precede
+    low-level optimizations.
+  - >
+    Every optimization should have a clearly understood
+    rationale and measurable benefit.
