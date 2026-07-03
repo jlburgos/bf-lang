@@ -1,3 +1,6 @@
+## Ignore IDE artifacts
+.vscode
+
 ## Ignore build artifacts
 bf
 
