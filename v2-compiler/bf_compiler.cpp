@@ -12,7 +12,6 @@
 
 // Algorithm
 #include <algorithm>
-//#include <cmath>
 
 // I/O
 #include <iostream>
@@ -141,7 +140,6 @@ namespace ir {
 
   static std::string instruction_to_str(const Instruction& instruction) {
     std::string str = std::string{lexer::opcode_to_str(instruction.opcode)};
-    //if (lexer::has_usable_operand(instruction.opcode)) {
     if (lexer::has_usable_operand(instruction.opcode)) {
       return str + "(" + std::to_string(instruction.operand) + ")";
     }
