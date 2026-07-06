@@ -10,10 +10,10 @@
 #include <vector>
 #include <unordered_set>
 
-// Algorithm
+// Algorithms / Utilities
 #include <algorithm>
 
-// I/O
+// IO
 #include <iostream>
 #include <format>
 #include <fstream>
@@ -35,26 +35,26 @@ namespace fs = std::filesystem;
 
 namespace lexer {
   enum struct Tokens : char {
-    TOKEN_MOVE_LEFT         = '<',
-    TOKEN_MOVE_RIGHT        = '>',
-    TOKEN_INCREMENT         = '+',
-    TOKEN_DECREMENT         = '-',
-    TOKEN_OUTPUT            = '.',
-    TOKEN_INPUT             = ',',
-    TOKEN_JUMP_IF_ZERO      = '[',
-    TOKEN_JUMP_IF_NOT_ZERO  = ']'
+    MOVE_LEFT         = '<',
+    MOVE_RIGHT        = '>',
+    INCREMENT         = '+',
+    DECREMENT         = '-',
+    OUTPUT            = '.',
+    INPUT             = ',',
+    JUMP_IF_ZERO      = '[',
+    JUMP_IF_NOT_ZERO  = ']'
   };
 
-  static bool is_valid_token(const char ch) {
+  bool is_valid_token(const char ch) {
     switch (static_cast<Tokens>(ch)) {
-      case Tokens::TOKEN_MOVE_LEFT:
-      case Tokens::TOKEN_MOVE_RIGHT:
-      case Tokens::TOKEN_INCREMENT:
-      case Tokens::TOKEN_DECREMENT:
-      case Tokens::TOKEN_OUTPUT:
-      case Tokens::TOKEN_INPUT:
-      case Tokens::TOKEN_JUMP_IF_ZERO:
-      case Tokens::TOKEN_JUMP_IF_NOT_ZERO:
+      case Tokens::MOVE_LEFT:
+      case Tokens::MOVE_RIGHT:
+      case Tokens::INCREMENT:
+      case Tokens::DECREMENT:
+      case Tokens::OUTPUT:
+      case Tokens::INPUT:
+      case Tokens::JUMP_IF_ZERO:
+      case Tokens::JUMP_IF_NOT_ZERO:
         return true;
       default:
         return false;
@@ -76,7 +76,7 @@ namespace lexer {
     //MOVE_VALUE // For something like "[->+<]" which transfers a value between cells
   };
 
-  static constexpr std::string_view opcode_to_str(const OpCode opcode) {
+  constexpr std::string_view opcode_to_str(const OpCode opcode) {
     switch (opcode) {
       case OpCode::MOVE:
         return "MOVE";
@@ -96,32 +96,31 @@ namespace lexer {
   }
 
   [[maybe_unused]]
-  inline static bool is_move(const OpCode opcode) {
+  inline bool is_move(const OpCode opcode) {
     return opcode == OpCode::MOVE;
   }
   [[maybe_unused]]
-  inline static bool is_arith(const OpCode opcode) {
+  inline bool is_arith(const OpCode opcode) {
     return opcode == OpCode::ADD;
   }
   [[maybe_unused]]
-  inline static bool is_stdio(const OpCode opcode) {
+  inline bool is_stdio(const OpCode opcode) {
     return (opcode == OpCode::OUTPUT) || (opcode == OpCode::INPUT);
   }
   [[maybe_unused]]
-  inline static bool is_jump(const OpCode opcode) {
+  inline bool is_jump(const OpCode opcode) {
     return (opcode == OpCode::JUMP_IF_ZERO) || (opcode == OpCode::JUMP_IF_NOT_ZERO);
   }
   [[maybe_unused]]
-  inline static bool is_foldable(const OpCode opcode) {
+  inline bool is_foldable(const OpCode opcode) {
     return is_arith(opcode) || is_move(opcode);
   }
   [[maybe_unused]]
-  inline static bool has_usable_operand(const OpCode opcode) {
-    constexpr std::array<bool(*)(OpCode), 3> funcs = {is_move, is_arith, is_jump};
-    return std::any_of(funcs.cbegin(), funcs.cend(), [opcode](auto func) { return func(opcode); });
+  inline bool has_usable_operand(const OpCode opcode) {
+    return is_move(opcode) || is_arith(opcode) || is_jump(opcode);
   }
   [[maybe_unused]]
-  inline static bool is_same_foldable(const OpCode opcode1, const OpCode opcode2) {
+  inline bool is_same_foldable(const OpCode opcode1, const OpCode opcode2) {
     return is_foldable(opcode1) && (opcode1 == opcode2);
   }
 }
@@ -136,9 +135,9 @@ namespace ir {
       operand_t operand;
       lexer::OpCode opcode;
   };
-  using instruction_list = std::vector<Instruction>;
+  using instruction_list_t = std::vector<Instruction>;
 
-  static std::string instruction_to_str(const Instruction& instruction) {
+  std::string instruction_to_str(const Instruction& instruction) {
     std::string str = std::string{lexer::opcode_to_str(instruction.opcode)};
     if (lexer::has_usable_operand(instruction.opcode)) {
       return str + "(" + std::to_string(instruction.operand) + ")";
@@ -146,17 +145,16 @@ namespace ir {
     return str;
   }
 
-  inline static std::size_t emit_instruction(instruction_list& instructions, const lexer::OpCode opcode, operand_t operand = 0) {
+  inline std::size_t emit_instruction(ir::instruction_list_t& instructions, const lexer::OpCode opcode, operand_t operand = 0) {
     instructions.emplace_back(opcode, operand);
     return instructions.size() - 1;  // instruction index
   }
 
-  inline static std::size_t emit_instruction(instruction_list& instructions, const Instruction& instruction) {
+  inline std::size_t emit_instruction(ir::instruction_list_t& instructions, const Instruction& instruction) {
     return emit_instruction(instructions, instruction.opcode, instruction.operand);
   }
 
-  [[maybe_unused]]
-  static std::size_t try_emit_folded_instruction(instruction_list& instructions, Instruction& instruction) {
+  std::size_t try_emit_folded_instruction(ir::instruction_list_t& instructions, Instruction& instruction) {
       auto opcode = instruction.opcode;
       auto operand = instruction.operand;
       if (!instructions.empty() && is_same_foldable(opcode, instructions.back().opcode)) {
@@ -178,7 +176,7 @@ enum struct FeatureFlag : std::uint8_t {
   // TODO :: Add more FFs!
 };
 
-class Config {
+struct Config {
  public:
   bool is_enabled(const FeatureFlag feature_flag) const noexcept {
     return feature_flags.contains(feature_flag);
@@ -194,29 +192,33 @@ class Config {
   std::unordered_set<FeatureFlag> feature_flags;
 };
 
-using instruction_list = std::vector<ir::Instruction>;
 class Program {
 public:
-  Program() = delete;
+  Program() = default;
+  Program(const Program&) = default;
+  Program(Program&&) noexcept = default;
+  Program& operator=(const Program&) = default;
+  Program& operator=(Program&&) noexcept = default;
   ~Program() = default;
-  explicit Program(std::size_t size) { instructions.reserve(size); }
-  explicit Program(Program& program)
-      : instructions(program.get_instructions()) {}
-  explicit Program(Program&& program)
-      : instructions(std::move(program.get_instructions())) {}
 
-  inline ir::Instruction get_instruction(const std::size_t i) noexcept { return instructions[i]; }
-  inline const ir::Instruction& get_instruction(const std::size_t i) const noexcept { return instructions[i]; }
-  inline instruction_list& get_instructions() noexcept { return instructions; }
-  inline const instruction_list& get_instructions() const noexcept { return instructions; }
+  explicit Program(const Config& config) : config(config) {}
+
   inline std::size_t size() const noexcept { return instructions.size(); }
 
-  void update_instructions(instruction_list&& instructions) noexcept {
+  inline void reserve_capacity(const std::size_t i) { instructions.reserve(i); }
+  inline void compress_capacity() { instructions.shrink_to_fit(); }
+
+  inline ir::Instruction& get_instruction(const std::size_t i) noexcept { return instructions[i]; }
+  inline const ir::Instruction& get_instruction(const std::size_t i) const noexcept { return instructions[i]; }
+
+  inline ir::instruction_list_t& get_instructions() noexcept { return instructions; }
+  inline const ir::instruction_list_t& get_instructions() const noexcept { return instructions; }
+
+  inline void update_instructions(ir::instruction_list_t&& instructions) noexcept {
     this->instructions = std::move(instructions);
-    this->instructions.shrink_to_fit();
   }
 
-  void print_intermediate_representation() const {
+  void print_intermediate_representation() const noexcept {
     const std::size_t num_digits = (size() == 0) ? 1 : (std::log10(size()) + 1);
     std::size_t loop_depth = 0;
     for (std::size_t i = 0; i < size(); ++i) {
@@ -233,8 +235,7 @@ public:
     }
   }
 
-  // TODO :: program.push(..), program.back(), program[index]
-  ir::Instruction& push(const ir::Instruction& instruction) {
+  ir::Instruction& push(const ir::Instruction& instruction) noexcept {
     instructions.push_back(instruction);
     return back();
   }
@@ -254,11 +255,11 @@ public:
   }
 
   ir::Instruction& operator[](const std::size_t index) {
-    return instructions.at(index);
+    return get_instruction(index);
   }
 
   const ir::Instruction& operator[](const std::size_t index) const {
-    return instructions.at(index);
+    return get_instruction(index);
   }
 
   ir::Instruction pop_back() {
@@ -277,25 +278,25 @@ public:
 
     for (const char ch : raw_program_tokens) {
       switch (static_cast<lexer::Tokens>(ch)) {
-        case lexer::Tokens::TOKEN_MOVE_RIGHT:
+        case lexer::Tokens::MOVE_RIGHT:
           emit_instruction(instructions, lexer::OpCode::MOVE, 1);
           break;
-        case lexer::Tokens::TOKEN_MOVE_LEFT:
+        case lexer::Tokens::MOVE_LEFT:
           emit_instruction(instructions, lexer::OpCode::MOVE, -1);
           break;
-        case lexer::Tokens::TOKEN_INCREMENT:
+        case lexer::Tokens::INCREMENT:
           emit_instruction(instructions, lexer::OpCode::ADD, 1);
           break;
-        case lexer::Tokens::TOKEN_DECREMENT:
+        case lexer::Tokens::DECREMENT:
           emit_instruction(instructions, lexer::OpCode::ADD, -1);
           break;
-        case lexer::Tokens::TOKEN_OUTPUT:
+        case lexer::Tokens::OUTPUT:
           emit_instruction(instructions, lexer::OpCode::OUTPUT);
           break;
-        case lexer::Tokens::TOKEN_INPUT:
+        case lexer::Tokens::INPUT:
           emit_instruction(instructions, lexer::OpCode::INPUT);
           break;
-        case lexer::Tokens::TOKEN_JUMP_IF_ZERO:
+        case lexer::Tokens::JUMP_IF_ZERO:
           {
             // set default jump index to zero, will update later
             const std::size_t open_loop_index = emit_instruction(instructions, lexer::OpCode::JUMP_IF_ZERO);
@@ -303,7 +304,7 @@ public:
             loop_stack.push_back(open_loop_index);
           }
           break;
-        case lexer::Tokens::TOKEN_JUMP_IF_NOT_ZERO:
+        case lexer::Tokens::JUMP_IF_NOT_ZERO:
           {
             if (loop_stack.empty()) {
               throw std::runtime_error("There are unmatched ']' instructions, which produces an invalid program!");
@@ -326,45 +327,114 @@ public:
     instructions.shrink_to_fit();
   }
 
+  void run() {
+    std::array<std::uint8_t, 30'000> buffer{};
+    std::size_t memory_pointer{};
+    std::size_t instruction_pointer{};
+
+    const auto is_valid_move = [&](const ir::operand_t operand) -> void {
+      if (operand > 0 && (memory_pointer >= buffer.size() - operand)) {
+        throw std::runtime_error(
+            std::format("Error: Program data pointer increment from instruction "
+                        "at (index: {}) caused out-of-bounds indexing!",
+                        instruction_pointer));
+      }
+      const ir::operand_t cell_index = static_cast<ir::operand_t>(memory_pointer);
+      if (operand < 0 && (cell_index <= operand - 1)) {
+        throw std::runtime_error(
+            std::format("Error: Program data pointer decrement from instruction "
+                        "at (index: {}) caused out-of-bounds indexing!",
+                        instruction_pointer));
+      }
+    };
+
+    const auto read_input = [&]() -> void {
+      // Read single byte of user input and ignore any additional user input
+      char input;
+      if (std::cin.get(input)) {
+        buffer[memory_pointer] = static_cast<std::uint8_t>(input);
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+      }
+    };
+
+    while (instruction_pointer < get_instructions().size()) {
+      const ir::Instruction& instruction = get_instruction(instruction_pointer);
+      switch (instruction.opcode) {
+        case lexer::OpCode::MOVE:
+          is_valid_move(instruction.operand);
+          memory_pointer += instruction.operand;
+          break;
+        case lexer::OpCode::ADD:
+          buffer[memory_pointer] += instruction.operand;
+          break;
+        case lexer::OpCode::OUTPUT:
+          std::cout << static_cast<char>(buffer[memory_pointer]);
+          break;
+        case lexer::OpCode::INPUT:
+          read_input();
+          break;
+        case lexer::OpCode::JUMP_IF_ZERO:
+          if (buffer[memory_pointer] == 0) {
+            instruction_pointer = instruction.operand;
+            continue;
+          }
+          break;
+        case lexer::OpCode::JUMP_IF_NOT_ZERO:
+          if (buffer[memory_pointer] != 0) {
+            instruction_pointer = instruction.operand;
+            continue;
+          }
+          break;
+        default: throw std::logic_error("Unknown opcode detected in compiled program!");
+      }
+      ++instruction_pointer;
+    }
+  }
+
 private:
-  instruction_list instructions;
+  ir::instruction_list_t instructions;
+  Config config;
 };
 
 namespace optimization {
 
-  std::size_t compress_instructions(Program& program) {
-    auto& uncompressed_instructions = program.get_instructions();
-    std::vector<std::size_t> loop_stack{};
-
-    instruction_list compressed_instructions{};
-    compressed_instructions.reserve(uncompressed_instructions.size());
-
-    // TODO :: BUG :: Compression does not properly account for multiple '[' and ']' operations with compression in-between!
-    for (std::size_t i = 0; i < uncompressed_instructions.size(); ++i) {
-      auto& instruction = uncompressed_instructions[i];
-      switch(instruction.opcode) {
-        case lexer::OpCode::JUMP_IF_ZERO:
-          {
-            // back-patch later to correct the operand value since further compressions will invalidate the existing value
-            const std::size_t open_bracket = emit_instruction(compressed_instructions, instruction);
-            loop_stack.push_back(open_bracket);
-          }
-          break;
-        case lexer::OpCode::JUMP_IF_NOT_ZERO:
-          {
-            const std::size_t open_bracket = loop_stack.back();
-            loop_stack.pop_back();
-            const std::size_t closed_bracket = emit_instruction(compressed_instructions, instruction.opcode, open_bracket);
-            compressed_instructions[open_bracket].operand = closed_bracket;
+  namespace { // private helpers
+    void reset_jump_instructions(Program& program) {
+      std::vector<std::size_t> loop_stack{};
+      for (std::size_t i = 0; i < program.size(); ++i) {
+        std::cout << "idx: " << i << ", size: " << program.size() << std::endl;
+        switch(program[i].opcode) {
+          case lexer::OpCode::JUMP_IF_ZERO:
+            // store open-bracket index for back-patching
+            loop_stack.push_back(i);
             break;
-          }
-        default:
-          try_emit_folded_instruction(compressed_instructions, instruction);
+          case lexer::OpCode::JUMP_IF_NOT_ZERO:
+            // reset jump targets
+            program[i].operand = loop_stack.back();
+            program[loop_stack.back()].operand = i;
+            loop_stack.pop_back();
+            break;
+          default:
+            // Ignore
+        }
       }
     }
+  }
 
-    const std::size_t diff = program.size() - compressed_instructions.size();
-    program.update_instructions(std::move(compressed_instructions));
+  std::size_t compress_instructions(Program& program) {
+    std::vector<std::size_t> loop_stack{};
+    Program compressed_program{};
+    compressed_program.reserve_capacity(program.size());
+
+    for (std::size_t i = 0; i < program.size(); ++i) {
+      auto& instruction = program[i];
+      try_emit_folded_instruction(compressed_program.get_instructions(), instruction);
+    }
+    reset_jump_instructions(compressed_program); // resolve potential jump instruction invalidations from compression
+
+    compressed_program.compress_capacity(); // remove excess capacity from initial reserve operation
+    const std::size_t diff = program.size() - compressed_program.size(); // compute difference in program instruction size
+    program.update_instructions(std::move(compressed_program.get_instructions()));
     return diff;
   }
 
@@ -404,88 +474,24 @@ namespace io {
   }
 }
 
-static void run(const Program& program) {
-  std::array<std::uint8_t, 30'000> buffer{};
-  std::size_t memory_pointer{};
-  std::size_t instruction_pointer{};
-
-  const auto is_valid_move = [&](const ir::operand_t operand) -> void {
-    if (operand > 0 && (memory_pointer >= buffer.size() - operand)) {
-      throw std::runtime_error(
-          std::format("Error: Program data pointer increment from instruction "
-                      "at (index: {}) caused out-of-bounds indexing!",
-                      instruction_pointer));
-    }
-    const ir::operand_t cell_index = static_cast<ir::operand_t>(memory_pointer);
-    if (operand < 0 && (cell_index <= operand - 1)) {
-      throw std::runtime_error(
-          std::format("Error: Program data pointer decrement from instruction "
-                      "at (index: {}) caused out-of-bounds indexing!",
-                      instruction_pointer));
-    }
-  };
-
-  const auto read_input = [&]() -> void {
-    // Read single byte of user input and ignore any additional user input
-    char input;
-    if (std::cin.get(input)) {
-      buffer[memory_pointer] = static_cast<std::uint8_t>(input);
-      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    }
-  };
-
-  while (instruction_pointer < program.get_instructions().size()) {
-    const ir::Instruction& instruction = program.get_instruction(instruction_pointer);
-    switch (instruction.opcode) {
-      case lexer::OpCode::MOVE:
-        is_valid_move(instruction.operand);
-        memory_pointer += instruction.operand;
-        break;
-      case lexer::OpCode::ADD:
-        buffer[memory_pointer] += instruction.operand;
-        break;
-      case lexer::OpCode::OUTPUT:
-        std::cout << static_cast<char>(buffer[memory_pointer]);
-        break;
-      case lexer::OpCode::INPUT:
-        read_input();
-        break;
-      case lexer::OpCode::JUMP_IF_ZERO:
-        if (buffer[memory_pointer] == 0) {
-          instruction_pointer = instruction.operand;
-          continue;
-        }
-        break;
-      case lexer::OpCode::JUMP_IF_NOT_ZERO:
-        if (buffer[memory_pointer] != 0) {
-          instruction_pointer = instruction.operand;
-          continue;
-        }
-        break;
-      default: throw std::logic_error("Unknown opcode detected in compiled program!");
-    }
-    ++instruction_pointer;
-  }
-}
-
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cerr << "Need to provide file path!" << std::endl;
     return 1;
   }
   try {
-    const std::string raw_program = io::read_program_file(argv[1]);
-    Program program{raw_program.size()};
-    program.build_intermediate_representation(raw_program);
-    DBG(std::cout << "Prior to optimization:" << std::endl; program.print_intermediate_representation());
-
     // TODO :: Accept FFs as input later. For now, we manually enable them all for testing purposes!
     Config config;
     config.set(FeatureFlag::COMPRESS_INSTRUCTIONS);
+
+    Program program{config};
+    program.build_intermediate_representation(io::read_program_file(argv[1]));
+    DBG(std::cout << "Prior to optimization:" << std::endl; program.print_intermediate_representation());
+
     optimization::optimize(program, config);
     DBG(std::cout << "After optimization:" << std::endl; program.print_intermediate_representation());
-
-    run(program);
+    DBG(std::cout << "Size of program obj: " << sizeof(program) << std::endl;);
+    program.run();
     return EXIT_SUCCESS;
   } catch (const std::exception& e) {
     std::cerr << "Failed with error: " << e.what() << std::endl;
