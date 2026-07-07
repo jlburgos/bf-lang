@@ -306,15 +306,24 @@ public:
           {
             // emit jump instruction with no target, resolve later
             mismatched_brackets_counter -= 1;
+            if (mismatched_brackets_counter < 0) {
+              throw std::runtime_error(
+                  "There are unmatched ']' instructions, which "
+                  "produces an invalid program!");
+            }
             emit_instruction(instructions, lexer::OpCode::JUMP_IF_NOT_ZERO);
           }
           break;
         default:
-          throw std::runtime_error(std::format("Invalid input '{}' was encountered! This should never happen!", ch));
+          throw std::runtime_error(std::format(
+              "Invalid input '{}' was encountered! This should never happen!",
+              ch));
       }
     }
     if (mismatched_brackets_counter != 0) {
-      throw std::runtime_error("There are unmatched '[' and/or ']' instructions, which produces an invalid program!");
+      throw std::runtime_error(
+          "There are unmatched '[' instructions, which produces an "
+          "invalid program!");
     }
     resolve_jump_instructions(); // back patch jump instructions
   }
