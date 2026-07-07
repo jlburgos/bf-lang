@@ -273,8 +273,7 @@ public:
     instructions.clear();
     instructions.reserve(raw_program_tokens.size());
 
-    // Maintain memory addresses for jumps
-    std::vector<std::size_t> loop_stack{};
+    std::int64_t mismatched_brackets_counter = 0;
 
     for (const char ch : raw_program_tokens) {
       switch (static_cast<lexer::Tokens>(ch)) {
@@ -298,33 +297,26 @@ public:
           break;
         case lexer::Tokens::JUMP_IF_ZERO:
           {
-            // set default jump index to zero, will update later
-            const std::size_t open_loop_index = emit_instruction(instructions, lexer::OpCode::JUMP_IF_ZERO);
-            // store index for matching ']'
-            loop_stack.push_back(open_loop_index);
+            // emit jump instruction with no target, resolve later
+            mismatched_brackets_counter += 1;
+            emit_instruction(instructions, lexer::OpCode::JUMP_IF_ZERO);
           }
           break;
         case lexer::Tokens::JUMP_IF_NOT_ZERO:
           {
-            if (loop_stack.empty()) {
-              throw std::runtime_error("There are unmatched ']' instructions, which produces an invalid program!");
-            }
-            // set jump from ']' to matching '['
-            const std::size_t open_loop_index = loop_stack.back();
-            loop_stack.pop_back();
-            const std::size_t close_loop_index = emit_instruction(instructions, lexer::OpCode::JUMP_IF_NOT_ZERO, open_loop_index);
-            // set jump from '[' to matching ']'
-            instructions[open_loop_index].operand = close_loop_index;
+            // emit jump instruction with no target, resolve later
+            mismatched_brackets_counter -= 1;
+            emit_instruction(instructions, lexer::OpCode::JUMP_IF_NOT_ZERO);
           }
           break;
         default:
           throw std::runtime_error(std::format("Invalid input '{}' was encountered! This should never happen!", ch));
       }
     }
-    if (!loop_stack.empty()) {
-      throw std::runtime_error("There are unmatched '[' instructions, which produces an invalid program!");
+    if (mismatched_brackets_counter != 0) {
+      throw std::runtime_error("There are unmatched '[' and/or ']' instructions, which produces an invalid program!");
     }
-    instructions.shrink_to_fit();
+    resolve_jump_instructions(); // back patch jump instructions
   }
 
   void run() {
@@ -391,35 +383,33 @@ public:
     }
   }
 
+  void resolve_jump_instructions() {
+    std::vector<std::size_t> loop_stack{};
+    for (std::size_t i = 0; i < size(); ++i) {
+      std::cout << "idx: " << i << ", size: " << size() << std::endl;
+      switch(get_instruction(i).opcode) {
+        case lexer::OpCode::JUMP_IF_ZERO:
+          // store open-bracket index for back-patching
+          loop_stack.push_back(i);
+          break;
+        case lexer::OpCode::JUMP_IF_NOT_ZERO:
+          // reset jump targets
+          get_instruction(i).operand = loop_stack.back();
+          get_instruction(loop_stack.back()).operand = i;
+          loop_stack.pop_back();
+          break;
+        default:
+          // Ignore
+      }
+    }
+  }
+
 private:
   ir::instruction_list_t instructions;
   Config config;
 };
 
 namespace optimization {
-
-  namespace { // private helpers
-    void reset_jump_instructions(Program& program) {
-      std::vector<std::size_t> loop_stack{};
-      for (std::size_t i = 0; i < program.size(); ++i) {
-        std::cout << "idx: " << i << ", size: " << program.size() << std::endl;
-        switch(program[i].opcode) {
-          case lexer::OpCode::JUMP_IF_ZERO:
-            // store open-bracket index for back-patching
-            loop_stack.push_back(i);
-            break;
-          case lexer::OpCode::JUMP_IF_NOT_ZERO:
-            // reset jump targets
-            program[i].operand = loop_stack.back();
-            program[loop_stack.back()].operand = i;
-            loop_stack.pop_back();
-            break;
-          default:
-            // Ignore
-        }
-      }
-    }
-  }
 
   std::size_t compress_instructions(Program& program) {
     std::vector<std::size_t> loop_stack{};
@@ -430,9 +420,11 @@ namespace optimization {
       auto& instruction = program[i];
       try_emit_folded_instruction(compressed_program.get_instructions(), instruction);
     }
-    reset_jump_instructions(compressed_program); // resolve potential jump instruction invalidations from compression
 
-    compressed_program.compress_capacity(); // remove excess capacity from initial reserve operation
+    // resolve potential jump instruction invalidations from compression
+    compressed_program.resolve_jump_instructions();
+    // remove excess capacity from initial reserve operation
+    compressed_program.compress_capacity();
     const std::size_t diff = program.size() - compressed_program.size(); // compute difference in program instruction size
     program.update_instructions(std::move(compressed_program.get_instructions()));
     return diff;
