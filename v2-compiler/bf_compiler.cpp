@@ -62,18 +62,17 @@ namespace lexer {
   }
 
   enum struct OpCode : std::uint8_t {
-    // Standard Language Instruction Set
+    // Standard Instruction OpCodes
     MOVE,             // '<','>'
     ADD,              // '+','-'
     OUTPUT,           // '.'
     INPUT,            // ','
-    // IDEA :: Combine into a single COND_JUMP instruction?
     JUMP_IF_ZERO,     // '[',
     JUMP_IF_NOT_ZERO, // ']',
 
-    // Complex (IR) Instruction Set
-    //CLEAR_CELL // For collapsing loops such as "[-]"
-    //MOVE_VALUE // For something like "[->+<]" which transfers a value between cells
+    // Complex Instruction OpCodes
+    CLEAR_CELL,       // For collapsing loops such as "[-]"
+    MOVE_VALUE,       // For something like "[->+<]" which transfers a value between cells
   };
 
   constexpr std::string_view opcode_to_str(const OpCode opcode) {
@@ -475,6 +474,16 @@ namespace io {
   }
 }
 
+// IDEA: Converting std::vector<Instruction> to std::vector<ByteCode> that can be directly processed by VirtualMachine or written out to a file!
+struct ByteCode {
+  std::uint8_t operation;
+  std::uint8_t operand;
+};
+
+class VirtualMachine {
+  // TODO
+};
+
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cerr << "Need to provide file path!" << std::endl;
@@ -482,7 +491,7 @@ int main(int argc, char* argv[]) {
   }
   try {
     // TODO :: Accept FFs as input later. For now, we manually enable them all for testing purposes!
-    Config config;
+    Config config{};
     config.set(FeatureFlag::COMPRESS_INSTRUCTIONS);
 
     Program program{config};
