@@ -52,8 +52,8 @@ namespace ir {
   }
 
   std::size_t try_emit_folded_instruction(instruction_list_t& instructions, Instruction& instruction) {
-      auto opcode = instruction.opcode;
-      auto operand = instruction.operand;
+      const auto opcode = instruction.opcode;
+      const auto operand = instruction.operand;
       if (!instructions.empty() && is_same_foldable(opcode, instructions.back().opcode)) {
         instructions.back().operand += operand;
         if (instructions.back().operand == 0) {

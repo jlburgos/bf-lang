@@ -473,12 +473,29 @@ public:
     return out.str();
   }
 
-  void generate_exe() {
+  void generate_exe(std::string_view asm_outfile) {
     // TODO :: Allow output filepath and filename configuration
     // TODO :: Currently hardcoding arch
-    FILE* pipe = popen("clang -arch arm64 -x assembler - -o output", "w");
+
+    std::stringstream ss;
+    ss << asm_outfile << ".asm";
+    const std::string asm_filename = ss.str();
+    ss.str("");
+    ss.clear();
+    ss << asm_outfile << ".exe";
+    const std::string executable_filename = ss.str();
+    ss.str("");
+    ss.clear();
+
+    const std::string asm_representation = generate_asm_str();
+    FILE* file = fopen(asm_filename.c_str(), "w");
+    if (file) {
+      fputs(asm_representation.c_str(), file);
+      fclose(file);
+    }
+    std::string command = std::format("clang -O3 -arch arm64 -x assembler - -o {}", executable_filename);
+    FILE* pipe = popen(command.c_str(), "w");
     if (pipe) {
-      std::string asm_representation = generate_asm_str();
       fputs(asm_representation.c_str(), pipe);
       pclose(pipe);
     }
@@ -570,11 +587,12 @@ int main(int argc, char* argv[]) {
     program.build_intermediate_representation(io::read_program_file(argv[1]));
     DBG(std::cout << "Prior to optimization:" << std::endl; program.print_intermediate_representation());
 
+    program.generate_exe("output.unoptimized");
     optimization::optimize(program, config);
     DBG(std::cout << "After optimization:" << std::endl; program.print_intermediate_representation());
     DBG(std::cout << "Size of program obj: " << sizeof(program) << std::endl;);
     program.run();
-    program.generate_exe();
+    program.generate_exe("output.optimized");
     return EXIT_SUCCESS;
   } catch (const std::exception& e) {
     std::cerr << "Failed with error: " << e.what() << std::endl;
