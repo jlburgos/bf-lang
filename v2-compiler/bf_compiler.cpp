@@ -18,6 +18,7 @@
 #include <format>
 #include <fstream>
 #include <limits>
+#include <sstream>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -412,6 +413,77 @@ public:
     }
   }
 
+  std::string generate_asm_str() {
+    std::ostringstream out;
+
+    // prologue
+    out << ".global _main\n.align 2\n\n"
+        << ".section __DATA,__bss\ntape:\n    .space 30000\n\n"
+        << ".section __TEXT,__text\n_main:\n"
+        << "    stp x29, x30, [sp, #-32]!\n"
+        << "    stp x19, x20, [sp, #16]\n"
+        << "    mov x29, sp\n"
+        << "    adrp x19, tape@PAGE\n"
+        << "    add  x19, x19, tape@PAGEOFF\n";
+
+    for (std::size_t i = 0; i < size(); ++i) {
+        const auto& ins = instructions[i];
+        switch (ins.opcode) {
+            case lexer::OpCode::MOVE:
+                if (ins.operand > 0)
+                    out << std::format("    add x19, x19, #{}\n", ins.operand);
+                else
+                    out << std::format("    sub x19, x19, #{}\n", -ins.operand);
+                break;
+            case lexer::OpCode::ADD:
+                out << "    ldrb w20, [x19]\n";
+                if (ins.operand > 0)
+                    out << std::format("    add w20, w20, #{}\n", ins.operand);
+                else
+                    out << std::format("    sub w20, w20, #{}\n", -ins.operand);
+                out << "    strb w20, [x19]\n";
+                break;
+            case lexer::OpCode::OUTPUT:
+                out << "    mov x0, #1\n    mov x1, x19\n"
+                    << "    mov x2, #1\n    mov x16, #4\n    svc #0x80\n";
+                break;
+            case lexer::OpCode::INPUT:
+                out << "    mov x0, #0\n    mov x1, x19\n"
+                    << "    mov x2, #1\n    mov x16, #3\n    svc #0x80\n";
+                break;
+            case lexer::OpCode::JUMP_IF_ZERO:
+                out << "    ldrb w20, [x19]\n"
+                    << std::format("    cbz w20, bf_{}_close\n", i)
+                    << std::format("bf_{}_open:\n", i);
+                break;
+            case lexer::OpCode::JUMP_IF_NOT_ZERO:
+                out << "    ldrb w20, [x19]\n"
+                    << std::format("    cbnz w20, bf_{}_open\n", ins.operand)
+                    << std::format("bf_{}_close:\n", ins.operand);
+                break;
+            default: break;
+        }
+    }
+
+    // epilogue
+    out << "    ldp x19, x20, [sp, #16]\n"
+        << "    ldp x29, x30, [sp], #32\n"
+        << "    mov x0, #0\n    mov x16, #1\n    svc #0x80\n";
+
+    return out.str();
+  }
+
+  void generate_exe() {
+    // TODO :: Allow output filepath and filename configuration
+    // TODO :: Currently hardcoding arch
+    FILE* pipe = popen("clang -arch arm64 -x assembler - -o output", "w");
+    if (pipe) {
+      std::string asm_representation = generate_asm_str();
+      fputs(asm_representation.c_str(), pipe);
+      pclose(pipe);
+    }
+  }
+
 private:
   ir::instruction_list_t instructions;
   Config config;
@@ -502,6 +574,7 @@ int main(int argc, char* argv[]) {
     DBG(std::cout << "After optimization:" << std::endl; program.print_intermediate_representation());
     DBG(std::cout << "Size of program obj: " << sizeof(program) << std::endl;);
     program.run();
+    program.generate_exe();
     return EXIT_SUCCESS;
   } catch (const std::exception& e) {
     std::cerr << "Failed with error: " << e.what() << std::endl;
